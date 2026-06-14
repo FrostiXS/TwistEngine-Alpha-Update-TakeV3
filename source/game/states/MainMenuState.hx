@@ -99,7 +99,7 @@ class MainMenuState extends MusicBeatState {
 		super.create();
 		#if DISCORD_RPC
 		// Updating Discord Rich Presence
-		DiscordClient.changePresence("In the Menus", null);
+		DiscordClient.changePresence("In the Main Menu", null);
 		#end
 		// WeekData.reloadWeeksFiles();
 		if (FlxG.sound.music == null || !FlxG.sound.music.active)

@@ -55,7 +55,7 @@ class MenuCharacter extends FlxSprite
 			case '':
 				visible = false;
 			default:
-				var characterPath:String = 'images/menus/storyMode/smCharacters/' + character + '.json';
+				var characterPath:String = 'images/menucharacters/' + character + '.json';
 
 				var path:String = Paths.getPath(characterPath, TEXT);
 
@@ -77,7 +77,7 @@ class MenuCharacter extends FlxSprite
 
 				if (charFile == null)
 				{
-					characterPath = 'images/menus/storyMode/smCharacters/' + DEFAULT_CHARACTER + '.json';
+					characterPath = 'images/menucharacters/' + DEFAULT_CHARACTER + '.json';
 					path = Paths.getPath(characterPath, TEXT);
 					try
 					{
@@ -96,7 +96,7 @@ class MenuCharacter extends FlxSprite
 					}
 				}
 
-				frames = Paths.getSparrowAtlas('menus/storyMode/smCharacters/' + charFile.image);
+				frames = Paths.getSparrowAtlas('menucharacters/' + charFile.image);
 				animation.addByPrefix('idle', charFile.idle_anim, 24);
 
 				var confirmAnim:String = charFile.confirm_anim;

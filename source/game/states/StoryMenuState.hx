@@ -17,6 +17,9 @@ import game.objects.MenuCharacter;
 import game.backend.utils.Highscore;
 import game.backend.utils.Difficulty;
 import flixel.util.FlxColor;
+#if DISCORD_RPC
+import game.backend.system.net.Discord;
+#end
 
 class StoryMenuState extends MusicBeatState
 {
@@ -60,15 +63,18 @@ class StoryMenuState extends MusicBeatState
 
 	override function create()
 	{
-		WeekData.reloadWeeksFiles(true);
+		#if DISCORD_RPC
+		DiscordClient.changePresence("In the Story Mode", null);
+		#end
 
+		WeekData.reloadWeeksFiles(true);
 		if (FlxG.sound.music == null || !FlxG.sound.music.active)
 			FlxG.sound.playMusic(Paths.music('freakyMenu'));
 
 		for (key in WeekData.weeksListOrder)
 		{
 			var week:WeekData = WeekData.weeksDatas.get(key.file);
-			if (week != null && week.data.storyMenu != null && week.data.storyMenu.hide != true)
+			if (week != null && week.data.storyMenu != null && week.data.storyMenu.hideStoryMode != true)
 			{
 				loadedWeeks.push(week);
 			}
@@ -78,7 +84,6 @@ class StoryMenuState extends MusicBeatState
 		{
 			var errorBg = new FlxSprite().makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
 			add(errorBg);
-
 			var errorText = new FlxFixedText(0, 0, FlxG.width, "Weeks not found", 75);
 			errorText.setFormat(Paths.font("Better VCR 6.1.ttf"), 32, FlxColor.WHITE, CENTER);
 			errorText.screenCenter(Y);
@@ -88,22 +93,24 @@ class StoryMenuState extends MusicBeatState
 			return;
 		}
 
+		// Безопасный преднатяг ресурсов с проверками на null
 		for (week in loadedWeeks)
 		{
 			var wData = week.data;
-			var bgName = wData.storyMenu.bg != null ? wData.storyMenu.bg : 'stage';
-			var dummyBg = new FlxSprite().loadGraphic(Paths.image('menus/storyMode/smBackgrounds/' + bgName));
+			var bgName = (wData.storyMenu != null && wData.storyMenu.weekBackground != null) ? wData.storyMenu.weekBackground : 'stage';
+			var dummyBg = new FlxSprite().loadGraphic(Paths.image('menubackgrounds/' + bgName));
 			persistentCache.push(dummyBg);
+
 			var diffs = (wData.difficulties != null && wData.difficulties.length > 0) ? wData.difficulties : ["normal"];
 			for (diff in diffs)
 			{
-				var dummyDiff = new FlxSprite().loadGraphic(Paths.image('menus/storyMode/smDifficulties/' + diff.toLowerCase()));
+				var dummyDiff = new FlxSprite().loadGraphic(Paths.image('menudifficulties/' + diff.toLowerCase()));
 				persistentCache.push(dummyDiff);
 			}
 
-			if (wData.storyMenu.character != null)
+			if (wData.storyMenu != null && wData.storyMenu.weekCharacters != null)
 			{
-				for (charName in wData.storyMenu.character)
+				for (charName in wData.storyMenu.weekCharacters)
 				{
 					if (charName != null && charName != '' && !preloadedCharacters.exists(charName))
 					{
@@ -123,7 +130,27 @@ class StoryMenuState extends MusicBeatState
 		for (i in 0...loadedWeeks.length)
 		{
 			var weekThing:FlxSprite = new FlxSprite(0, currentY);
-			weekThing.loadGraphic(Paths.image('menus/storyMode/smTitles/' + loadedWeeks[i].data.storyMenu.title));
+
+			var wData = loadedWeeks[i].data;
+			var weekImg:String = 'default';
+
+			if (wData.storyMenu != null)
+			{
+				if (Reflect.hasField(wData.storyMenu, 'weekName') && Reflect.field(wData.storyMenu, 'weekName') != null)
+					weekImg = Reflect.field(wData.storyMenu, 'weekName');
+				else if (wData.storyMenu.storyName != null)
+					weekImg = wData.storyMenu.storyName.toLowerCase();
+			}
+
+			// Пытаемся загрузить график, если не получается - используем default
+			var graphic = Paths.image('storymenu/' + weekImg);
+			if (graphic == null || graphic.bitmap == null)
+			{
+				weekImg = 'default';
+				graphic = Paths.image('storymenu/default');
+			}
+
+			weekThing.loadGraphic(graphic);
 			weekThing.screenCenter(X);
 			weekThing.ID = i;
 			yPositions.push(currentY);
@@ -140,9 +167,17 @@ class StoryMenuState extends MusicBeatState
 		bgSprite.updateHitbox();
 		add(bgSprite);
 
-		var shaderCode:String = openfl.utils.Assets.getText(Paths.file('shaders/engine/bgColorGradient.frag'));
-		bgGradientShader = new FlxRuntimeShader(shaderCode);
-		bgSprite.shader = bgGradientShader;
+		// Безопасная загрузка шейдера
+		var shaderPath:String = Paths.file('shaders/engine/bgColorGradient.frag');
+		if (shaderPath != null && openfl.utils.Assets.exists(shaderPath))
+		{
+			var shaderCode:String = openfl.utils.Assets.getText(shaderPath);
+			if (shaderCode != null && shaderCode.length > 0)
+			{
+				bgGradientShader = new FlxRuntimeShader(shaderCode);
+				bgSprite.shader = bgGradientShader;
+			}
+		}
 
 		grpWeekCharacters = new FlxTypedGroup<MenuCharacter>();
 		for (charSlot in 0...3)
@@ -174,7 +209,7 @@ class StoryMenuState extends MusicBeatState
 		leftArrow.frames = uiAtlas;
 		leftArrow.animation.addByPrefix('idle', 'arrow left');
 		leftArrow.animation.addByPrefix('press', 'arrow push left');
-		leftArrow.animation.play('idle');
+	leftArrow.animation.play('idle');
 		leftArrow.scale.set(0.7, 0.7);
 		leftArrow.updateHitbox();
 		add(leftArrow);
@@ -203,6 +238,10 @@ class StoryMenuState extends MusicBeatState
 
 	function scrambleText(desc:String, track:String)
 	{
+		// Отменяем старые scramble-процессы
+		isScramblingDesc = false;
+		isScramblingTrack = false;
+
 		targetTextDesc = desc.toUpperCase();
 		displayedIndicesDesc = [];
 		for (i in 0...targetTextDesc.length)
@@ -212,6 +251,7 @@ class StoryMenuState extends MusicBeatState
 		}
 		scrambleTimerDesc = 0;
 		isScramblingDesc = true;
+
 		targetTextTrack = track.toUpperCase();
 		displayedIndicesTrack = [];
 		for (i in 0...targetTextTrack.length)
@@ -376,26 +416,29 @@ class StoryMenuState extends MusicBeatState
 		var currentWeek = loadedWeeks[curSelected].data;
 
 		currentWeekDifficulties = (currentWeek.difficulties != null && currentWeek.difficulties.length > 0) ? currentWeek.difficulties : ["normal"];
-		Difficulty.list = currentWeekDifficulties;
 		curDifficulty = 0;
 		updateDifficultyDisplay();
 
 		var trackString:String = "";
 		for (song in currentWeek.songs)
 			trackString += song.songName + "\n";
-		scrambleText(currentWeek.storyMenu.description != null ? currentWeek.storyMenu.description : "", trackString);
 
-		var bgName:String = currentWeek.storyMenu.bg != null ? currentWeek.storyMenu.bg : 'stage';
-		bgSprite.loadGraphic(Paths.image('menus/storyMode/smBackgrounds/' + bgName));
+		var desc = (currentWeek.storyMenu != null && currentWeek.storyMenu.description != null) ? currentWeek.storyMenu.description : "";
+		scrambleText(desc, trackString);
+
+		var bgName:String = (currentWeek.storyMenu != null
+			&& currentWeek.storyMenu.weekBackground != null) ? currentWeek.storyMenu.weekBackground : 'stage';
+		bgSprite.loadGraphic(Paths.image('menubackgrounds/' + bgName));
 
 		var topColor:FlxColor = 0xFFE4CC6A;
 		var botColor:FlxColor = 0xFFDCAB4A;
 
-		var gradData = currentWeek.storyMenu.bgGradientColor;
-		if (gradData != null && gradData.length >= 2)
+		if (currentWeek.storyMenu != null
+			&& currentWeek.storyMenu.bgGradientColor != null
+			&& currentWeek.storyMenu.bgGradientColor.length >= 2)
 		{
-			topColor = FlxColor.fromString(gradData[0]);
-			botColor = FlxColor.fromString(gradData[1]);
+			topColor = FlxColor.fromString(currentWeek.storyMenu.bgGradientColor[0]);
+			botColor = FlxColor.fromString(currentWeek.storyMenu.bgGradientColor[1]);
 		}
 
 		if (bgGradientShader != null)
@@ -404,17 +447,23 @@ class StoryMenuState extends MusicBeatState
 			bgGradientShader.setFloatArray('u_botColor', [botColor.redFloat, botColor.greenFloat, botColor.blueFloat]);
 		}
 
+		// Обновление персонажей с проверкой границ
+		var weekCharacters = (currentWeek.storyMenu != null && currentWeek.storyMenu.weekCharacters != null)
+			? currentWeek.storyMenu.weekCharacters : [];
+		var characterColors = (currentWeek.storyMenu != null && currentWeek.storyMenu.characterColors != null)
+			? currentWeek.storyMenu.characterColors : [];
+
 		for (i in 0...grpWeekCharacters.members.length)
 		{
 			var charSprite = grpWeekCharacters.members[i];
-			var charName = (currentWeek.storyMenu.character != null) ? currentWeek.storyMenu.character[i] : null;
+			var charName = (i < weekCharacters.length) ? weekCharacters[i] : null;
+
 			if (charName != null && charName != '')
 			{
 				charSprite.visible = true;
 				charSprite.changeCharacter(charName);
-
-				if (currentWeek.storyMenu.characterColors != null && currentWeek.storyMenu.characterColors[i] != null)
-					charSprite.color = FlxColor.fromString(currentWeek.storyMenu.characterColors[i]);
+				if (i < characterColors.length && characterColors[i] != null)
+					charSprite.color = FlxColor.fromString(characterColors[i]);
 				else
 					charSprite.color = FlxColor.WHITE;
 			}
@@ -445,13 +494,26 @@ class StoryMenuState extends MusicBeatState
 
 		if (diffName == "nightmare")
 		{
-			difficultySprite.frames = Paths.getSparrowAtlas('menus/storyMode/smDifficulties/' + diffName);
-			difficultySprite.animation.addByPrefix('idle', 'idle', 60, true);
-			difficultySprite.animation.play('idle');
+			var atlasPath = Paths.getSparrowAtlas('menudifficulties/' + diffName);
+			if (atlasPath != null)
+			{
+				difficultySprite.frames = atlasPath;
+				difficultySprite.animation.addByPrefix('idle', 'idle', 60, true);
+				difficultySprite.animation.play('idle');
+			}
+			else
+			{
+				// Fallback на статичное изображение
+				var graphic = Paths.image('menudifficulties/' + diffName);
+				if (graphic != null)
+					difficultySprite.loadGraphic(graphic);
+			}
 		}
 		else
 		{
-			difficultySprite.loadGraphic(Paths.image('menus/storyMode/smDifficulties/' + diffName));
+			var graphic = Paths.image('menudifficulties/' + diffName);
+			if (graphic != null)
+				difficultySprite.loadGraphic(graphic);
 		}
 
 		difficultySprite.updateHitbox();
@@ -521,5 +583,22 @@ class StoryMenuState extends MusicBeatState
 			PlayState.SONG = Song.loadFromJson(playlist[0].toLowerCase() + diffSuffix, playlist[0].toLowerCase());
 			LoadingState.loadAndSwitchState(new PlayState());
 		});
+	}
+
+	override function destroy()
+	{
+		// Очистка кэша для предотвращения утечек памяти
+		for (sprite in persistentCache)
+		{
+			if (sprite != null)
+				sprite.destroy();
+		}
+		persistentCache.clear();
+		preloadedCharacters.clear();
+
+		if (bgGradientShader != null)
+			bgGradientShader = null;
+
+		super.destroy();
 	}
 }

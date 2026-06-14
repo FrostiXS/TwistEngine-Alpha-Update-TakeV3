@@ -31,13 +31,11 @@ class WeekData
 	public static final weeksListOrder = new Array<WeekDataKey>();
 
 	public var fileName:String;
-
 	public var data:WeekStruct;
 
 	public function new(data:WeekStruct, ?fileName:String)
 	{
 		this.data = data;
-
 		if (fileName != null)
 			this.fileName = fileName;
 	}
@@ -45,19 +43,26 @@ class WeekData
 	public static function getDefaultSongMetaData(?genId:Bool):SongMetaData
 		return
 		{
-		}
+		};
 
 	public static function defaultWeekStruct():WeekStruct
+	{
 		return {
 			songs: [getDefaultSongMetaData()],
-			difficulties: [],
+			difficulties: ["easy", "normal", "hard"],
 			isTwist: true,
 			storyMenu: {
-				title: "Title",
+				storyName: "Title",
 				description: "Description",
-				character: ["bf-pixel", "gf", "bf"]
-			}
-		}
+				weekCharacters: ["dad", "gf", "bf"],
+				weekBackground: "stage",
+				hideStoryMode: false,
+				firstTimeBlocked: false,
+				hiddenUntilUnlocked: false
+			},
+			hideInFreeplay: false
+		};
+	}
 
 	public static function reloadWeeksFiles(?getFromAllLibs:Bool)
 	{
@@ -98,9 +103,7 @@ class WeekData
 	public static function convertDifficulties(source:haxe.extern.EitherType<String, Array<String>>):Array<String>
 	{
 		if (source == null)
-		{
 			return null;
-		}
 		var diffs:Array<String> = (Std.isOfType(source, String) ? (source : String).split(",") : (source : Array<String>).copy());
 		var i:Int = diffs.length - 1;
 		var diff:String;
@@ -111,13 +114,9 @@ class WeekData
 			{
 				diff = diff.trim().toLowerCase();
 				if (diff.length == 0)
-				{
 					diffs.remove(diffs[i]);
-				}
 				else
-				{
 					diffs[i] = diff;
-				}
 			}
 			--i;
 		}
@@ -128,8 +127,10 @@ class WeekData
 	{
 		if (data == null)
 			return null;
+
 		if (Reflect.hasField(data, 'isTwist') && Reflect.field(data, 'isTwist') == true)
 		{
+			// TWIST формат (уже всё есть, только конвертируем песни)
 			function convertToClass(dyn:Dynamic):SongMetaData
 			{
 				var song:SongMetaData = {};
@@ -140,32 +141,91 @@ class WeekData
 			var songsArray:Array<Dynamic> = cast data.songs;
 			data.songs = songsArray == null ? [] : [for (i in songsArray) convertToClass(i)];
 			data.difficulties = convertDifficulties(data.difficulties);
+
+			// Если в Twist формате нет description, но есть storyName - используем его
+			if (data.storyMenu != null && (data.storyMenu.description == null || data.storyMenu.description == ""))
+			{
+				data.storyMenu.description = data.storyMenu.storyName;
+			}
+
 			return new WeekData(data, fileName);
 		}
 		else
-		{ // is it poopy week data psych?
-			final data:WeekFilePsych = cast data;
+		{
+			// PSYCH ENGINE формат
+			final psychData:WeekFilePsych = cast data;
+
+			// Определяем имя текстурной атласа для недели
+			var weekTextureName:String = psychData.weekName;
+			if (weekTextureName == null || weekTextureName == "")
+				weekTextureName = psychData.storyName != null ? psychData.storyName.toLowerCase() : "default";
+
+			// Формируем описание - можно взять из storyName или из кастомного поля
+			var weekDescription:String = "";
+
+			// Сначала проверяем, есть ли кастомное description в оригинальном JSON
+			if (Reflect.hasField(psychData, 'description') && Reflect.field(psychData, 'description') != null)
+			{
+				weekDescription = Reflect.field(psychData, 'description');
+			}
+			// Если нет - используем storyName
+			else if (psychData.storyName != null)
+			{
+				weekDescription = psychData.storyName;
+			}
+			// Если и storyName нет - дефолтное описание
+			else
+			{
+				weekDescription = "Play this week!";
+			}
+
+			// Формируем массив цветов персонажей (если есть)
+			var characterColors:Array<String> = null;
+			if (Reflect.hasField(psychData, 'characterColors') && Reflect.field(psychData, 'characterColors') != null)
+			{
+				characterColors = Reflect.field(psychData, 'characterColors');
+			}
+
+			// Формируем градиент фона (если есть)
+			var bgGradientColor:Array<String> = null;
+			if (Reflect.hasField(psychData, 'bgGradientColor') && Reflect.field(psychData, 'bgGradientColor') != null)
+			{
+				bgGradientColor = Reflect.field(psychData, 'bgGradientColor');
+			}
+
+			// Получаем цветовую схему для персонажей
+			var boyfriendColor:String = Reflect.hasField(psychData, 'boyfriendColor') ? Reflect.field(psychData, 'boyfriendColor') : null;
+			var girlfriendColor:String = Reflect.hasField(psychData, 'girlfriendColor') ? Reflect.field(psychData, 'girlfriendColor') : null;
+			var dadColor:String = Reflect.hasField(psychData, 'dadColor') ? Reflect.field(psychData, 'dadColor') : null;
+
 			return new WeekData({
 				songs: [
-					for (i in data.songs)
+					for (i in psychData.songs)
 						{
 							songName: i[0],
 							healthIcon: i[1],
 							freeplayColor: i[2],
-							invisibleInFreeplay: data.hideFreeplay
+							invisibleInFreeplay: psychData.hideFreeplay == true
 						}
 				],
 				isTwist: false,
-				difficulties: convertDifficulties(data.difficulties),
-				hideInFreeplay: data.hideFreeplay,
+				difficulties: convertDifficulties(psychData.difficulties),
+				hideInFreeplay: psychData.hideFreeplay == true,
 				storyMenu: {
-					title: data.storyName,
-					character: data.weekCharacters,
-					bg: data.weekBackground,
-					weekBefore: data.weekBefore,
-					hide: data.hideStoryMode,
-					firstTimeBlocked: data.startUnlocked,
-					hiddenUntilUnlocked: data.hiddenUntilUnlocked
+					storyName: psychData.storyName,
+					weekName: weekTextureName,
+					description: weekDescription, // ← КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ!
+					weekCharacters: psychData.weekCharacters,
+					weekBackground: psychData.weekBackground,
+					weekBefore: psychData.weekBefore,
+					hideStoryMode: psychData.hideStoryMode == true,
+					firstTimeBlocked: psychData.startUnlocked == true,
+					hiddenUntilUnlocked: psychData.hiddenUntilUnlocked == true,
+					characterColors: characterColors,
+					bgGradientColor: bgGradientColor,
+					boyfriendColor: boyfriendColor,
+					girlfriendColor: girlfriendColor,
+					dadColor: dadColor
 				}
 			}, fileName);
 		}
@@ -175,12 +235,13 @@ class WeekData
 typedef StoryMenuData =
 {
 	> ExtraFields,
-	title:String,
+	storyName:String,
 	?description:String,
+	?weekName:String,
 	?textImg:String,
-	character:Array<String>,
-	?bg:String,
-	?hide:Bool,
+	weekCharacters:Array<String>,
+	?weekBackground:String,
+	?hideStoryMode:Bool,
 	?firstTimeBlocked:Bool,
 	?hiddenUntilUnlocked:Bool,
 	?weekBefore:String,
@@ -202,9 +263,9 @@ typedef WeekStruct =
 	?hideInFreeplay:Bool
 }
 
+// Расширенный тип для Psych JSON с поддержкой кастомных полей
 typedef WeekFilePsych =
 {
-	// JSON variables
 	var songs:Array<Dynamic>;
 	var weekCharacters:Array<String>;
 	var weekBackground:String;
@@ -217,6 +278,14 @@ typedef WeekFilePsych =
 	var hideStoryMode:Bool;
 	var hideFreeplay:Bool;
 	var difficulties:String;
+
+	// Кастомные поля, которые могут быть в вашем JSON
+	@:optional var description:String;
+	@:optional var characterColors:Array<String>;
+	@:optional var bgGradientColor:Array<String>;
+	@:optional var boyfriendColor:String;
+	@:optional var girlfriendColor:String;
+	@:optional var dadColor:String;
 }
 
 @:publicFields
@@ -243,5 +312,5 @@ class SongMetaData
 
 typedef ExtraFields =
 {
-	?extraFields:Dynamic // struct
+	?extraFields:Dynamic
 }
