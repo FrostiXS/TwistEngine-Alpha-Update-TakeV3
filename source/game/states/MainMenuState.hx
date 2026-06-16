@@ -33,6 +33,8 @@ class MainMenuState extends MusicBeatState {
 	];
 	var magenta:FlxSprite;
 	var menuItems:FlxTypedGroup<FlxSprite>;
+	var engineTxt:FlxStaticText;
+	var fnfTxt:FlxStaticText;
 	var lastMouseX:Float = 0;
 	var lastMouseY:Float = 0;
 
@@ -81,15 +83,23 @@ class MainMenuState extends MusicBeatState {
 		}
 
 		FlxG.camera.follow(menuItems.members[0], null, 0);
-		final versionTxt:FlxStaticText = new FlxStaticText(12, FlxG.height - 8, 0, 'Twist Engine ${EngineData.engineVersion}
-		Friday Night Funkin v${lime.app.Application.current.meta.get('version')}', 16);
-		versionTxt.scrollFactor.set();
-		versionTxt.fieldHeight = -10;
-		versionTxt.borderStyle = FlxTextBorderStyle.OUTLINE;
-		versionTxt.borderColor = FlxColor.BLACK;
-		versionTxt.font = Paths.font('defaultPsych/vcr.ttf');
-		add(versionTxt);
-		versionTxt.y -= versionTxt.height;
+		engineTxt = new FlxStaticText(12, 0, 0, 'Twist Engine ${EngineData.engineVersion}', 16);
+		engineTxt.scrollFactor.set();
+		engineTxt.borderStyle = FlxTextBorderStyle.OUTLINE;
+		engineTxt.borderColor = FlxColor.BLACK;
+		engineTxt.font = Paths.font('defaultPsych/vcr.ttf');
+		add(engineTxt);
+
+		fnfTxt = new FlxStaticText(12, 0, 0, 'Friday Night Funkin v${lime.app.Application.current.meta.get('version')}', 16);
+		fnfTxt.scrollFactor.set();
+		fnfTxt.borderStyle = FlxTextBorderStyle.OUTLINE;
+		fnfTxt.borderColor = FlxColor.BLACK;
+		fnfTxt.font = Paths.font('defaultPsych/vcr.ttf');
+		add(fnfTxt);
+
+		// Ровняем по нижней границе экрана
+		fnfTxt.y = FlxG.height - fnfTxt.height - 8;
+		engineTxt.y = fnfTxt.y - 20;
 
 		changeItem();
 
@@ -177,7 +187,7 @@ class MainMenuState extends MusicBeatState {
 
 			if (controls.ACCEPT || (FlxG.mouse.justPressed && FlxG.mouse.overlaps(menuItems.members[curSelected])))
 			{
-				final toStateFunc:Void -> Class<MusicBeatState> = optionShit[curSelected][1];
+				final toStateFunc:Void->Class<MusicBeatState> = optionShit[curSelected][1];
 				final toState:Class<MusicBeatState> = toStateFunc();
 				if (toState != null)
 				{
@@ -187,16 +197,23 @@ class MainMenuState extends MusicBeatState {
 
 					if (ClientPrefs.data.flashing)
 						FlxFlicker.flicker(magenta, 1.1, 0.15, false);
+					FlxFlicker.flicker(menuItems.members[curSelected], 1, 0.06, false, false,
+						_ -> MusicBeatState.switchState(Type.createInstance(toState, [])));
 
-					FlxFlicker.flicker(menuItems.members[curSelected], 1, 0.06, false, false, _ -> MusicBeatState.switchState(Type.createInstance(toState, []))
-					);
 					for (i in 0...menuItems.members.length)
 					{
-						if (i == curSelected) continue;
+						if (i == curSelected)
+							continue;
 						FlxTween.tween(menuItems.members[i], {alpha: 0}, 0.4, {ease: FlxEase.quadOut, onComplete: function(_) menuItems.members[i].kill()});
 					}
+
+					if (engineTxt != null)
+						FlxTween.tween(engineTxt, {alpha: 0}, 0.3, {ease: FlxEase.quadOut});
+					if (fnfTxt != null)
+						FlxTween.tween(fnfTxt, {alpha: 0}, 0.3, {ease: FlxEase.quadOut});
 				}
 			}
+
 			#if (EDITORS_ALLOWED && desktop)
 			if (controls.DEBUG_1)
 			{

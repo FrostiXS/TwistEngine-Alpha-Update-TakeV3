@@ -32,6 +32,7 @@ import flixel.addons.ui.FlxUINumericStepper;
 import flixel.addons.ui.FlxUITabMenu;
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.group.FlxGroup;
+import flixel.group.FlxSpriteGroup;
 import flixel.math.FlxMath;
 import flixel.math.FlxPoint;
 import flixel.system.FlxSound;
@@ -140,6 +141,12 @@ class ChartingState extends MusicBeatUIState
 	];
 
 	var UI_box:FlxUITabMenu;
+
+	var newChartWindow:FlxSpriteGroup;
+	var ncSongInput:FlxUIInputText;
+	var ncBpmStepper:FlxUINumericStepper;
+	var ncErrorText:FlxStaticText;
+	var isNewChartWindowOpen:Bool = false;
 
 	public static var goToPlayState:Bool = false;
 	public static var botPlayChartMod:Bool = false;
@@ -430,6 +437,7 @@ class ChartingState extends MusicBeatUIState
 		add(zoomTxt);
 
 		updateGrid();
+		createNewChartWindow();
 		super.create();
 		updateInfoText();
 		lime.app.Application.current.window.onDropFile.add(LoadFromFile);
@@ -557,6 +565,16 @@ class ChartingState extends MusicBeatUIState
 		// songDropDown.selectedLabel = _song.song;
 		blockPressWhileScrolling.push(songDropDown);
 
+		var saveButton:FlxButton = new FlxButton(115, 78, "Save", function()
+		{
+			saveLevel();
+		});
+
+		var newChartBtn:FlxButton = new FlxButton(115, 48, "New Chart", function()
+		{
+			openNewChartWindow();
+		});
+
 		// UI_songTitle = new FlxUIInputText(10, 10, 70, _song.song, 8);
 		// blockPressWhileTypingOn.push(UI_songTitle);
 
@@ -568,43 +586,45 @@ class ChartingState extends MusicBeatUIState
 			// trace('CHECKED!');
 		}
 
-		var saveButton:FlxButton = new FlxButton(110, 48, "Save", function(){
-			saveLevel();
-		});
-
 		// var reloadSongJson:FlxButton = new FlxButton(saveButton.x + 90, saveButton.y, "Reload JSON", function(){
 		// 	loadJson(_song.song.toLowerCase());
 		// });
 
-		var reloadSong:FlxButton = new FlxButton(saveButton.x + 90, saveButton.y, "Reload Audio", function(){
+		var reloadSong:FlxButton = new FlxButton(205, 48, "Reload Audio", function()
+		{
 			currentSongName = Paths.formatToSongPath(_song.song);
 			loadSong();
 			updateWaveform();
 		});
 
-		var loadAutosaveBtn:FlxButton = new FlxButton(reloadSong.x, saveButton.y + 30, 'Load Autosave', function(){
+		var loadAutosaveBtn:FlxButton = new FlxButton(205, 78, 'Load Autosave', function()
+		{
 			PlayState.SONG = new Song(Song.parseJSONshit(save.data.autosave));
 			MusicBeatState.resetState();
 		});
 
-		var loadEventJson:FlxButton = new FlxButton(loadAutosaveBtn.x, loadAutosaveBtn.y + 30, 'Load Events', function(){
+		var loadEventJson:FlxButton = new FlxButton(205, 108, 'Load Events', function()
+		{
 			var songName:String = Paths.formatToSongPath(_song.song);
 			var file:String = Paths.json(songName + '/events');
-			if (OpenFlAssets.exists(file)){
+			if (OpenFlAssets.exists(file))
+			{
 				clearEvents();
 				final events:SwagSong = Song.loadFromJson('events', songName);
-				if (events != null){
+				if (events != null)
+				{
 					_song.events = events.events;
 					changeSection(curSec);
 				}
 			}
 		});
 
-		var saveEvents:FlxButton = new FlxButton(saveButton.x, saveButton.y + 30, 'Save Events', function(){
+		var saveEvents:FlxButton = new FlxButton(115, 108, 'Save Events', function()
+		{
 			saveEvents();
 		});
 
-		optimizeJsonBox = new FlxUICheckBox(saveEvents.x, saveEvents.y + 30, null, null, "Optimize JSON?", 55);
+		optimizeJsonBox = new FlxUICheckBox(10, 48, null, null, "Optimize JSON?", 55);
 		optimizeJsonBox.checked = true;
 
 		var clear_events:FlxButton = new FlxButton(320, 310, 'Clear events', function(){
@@ -622,7 +642,7 @@ class ChartingState extends MusicBeatUIState
 		clear_notes.color = FlxColor.RED;
 		clear_notes.label.color = FlxColor.WHITE;
 
-		var stepperBPM:FlxUINumericStepper = new FlxUINumericStepper(10, 70, 1, 1, 1, 4000, 3);
+		var stepperBPM:FlxUINumericStepper = new FlxUINumericStepper(10, 90, 1, 1, 1, 4000, 3);
 		stepperBPM.value = Conductor.bpm;
 		stepperBPM.name = 'song_bpm';
 		blockPressWhileTypingOnStepper.push(stepperBPM);
@@ -721,6 +741,7 @@ class ChartingState extends MusicBeatUIState
 		tab_group_song.add(saveButton);
 		tab_group_song.add(saveEvents);
 		tab_group_song.add(optimizeJsonBox);
+		tab_group_song.add(newChartBtn);
 		tab_group_song.add(reloadSong);
 		// tab_group_song.add(reloadSongJson);
 		tab_group_song.add(loadAutosaveBtn);
@@ -1955,6 +1976,11 @@ class ChartingState extends MusicBeatUIState
 	var goback:Bool = false;
 
 	override function update(elapsed:Float) {
+		if (isNewChartWindowOpen)
+		{
+			super.update(elapsed);
+			return;
+		}
 		if (!goback && subState == null && updatethat)
 		{
 			curStep = recalculateSteps();
@@ -3723,6 +3749,133 @@ class ChartingState extends MusicBeatUIState
 		return val != null ? val : 4;
 		*/
 		return _song?.notes[section ?? curSec]?.sectionBeats ?? 4;
+	}
+
+	function createNewChartWindow():Void
+	{
+		newChartWindow = new FlxSpriteGroup();
+		newChartWindow.scrollFactor.set();
+
+		var windowBg:FlxSprite = new FlxSprite().makeGraphic(350, 210, FlxColor.fromRGB(35, 35, 35));
+		windowBg.screenCenter();
+
+		var border:FlxSprite = new FlxSprite(windowBg.x - 2, windowBg.y - 2).makeGraphic(354, 214, FlxColor.BLACK);
+		newChartWindow.add(border);
+		newChartWindow.add(windowBg);
+
+		var titleTxt:FlxStaticText = new FlxStaticText(windowBg.x + 10, windowBg.y + 10, 0, "Create New Chart", 16);
+		newChartWindow.add(titleTxt);
+
+		var labelSong:FlxStaticText = new FlxStaticText(windowBg.x + 20, windowBg.y + 45, 0, "Song Name:", 10);
+		newChartWindow.add(labelSong);
+		ncSongInput = new FlxUIInputText(windowBg.x + 140, windowBg.y + 45, 180, "Test", 8);
+		blockPressWhileTypingOn.push(ncSongInput);
+		newChartWindow.add(ncSongInput);
+
+		var labelBpm:FlxStaticText = new FlxStaticText(windowBg.x + 20, windowBg.y + 85, 0, "Song BPM:", 10);
+		newChartWindow.add(labelBpm);
+		ncBpmStepper = new FlxUINumericStepper(windowBg.x + 140, windowBg.y + 85, 1, 150, 1, 500, 2);
+		blockPressWhileTypingOnStepper.push(cast ncBpmStepper);
+		newChartWindow.add(ncBpmStepper);
+
+		ncErrorText = new FlxStaticText(windowBg.x, windowBg.y + 120, 350, "", 10);
+		ncErrorText.alignment = LEFT;
+		ncErrorText.color = FlxColor.RED;
+		ncErrorText.visible = false;
+		newChartWindow.add(ncErrorText);
+
+		var createBtn:FlxButton = new FlxButton(windowBg.x + 50, windowBg.y + 155, "Create", function()
+		{
+			var rawSongName:String = ncSongInput.text.trim();
+			if (rawSongName == "")
+				return;
+
+			var formattedFolder:String = Paths.formatToSongPath(rawSongName);
+
+			var pathsToCheck:Array<String> = [
+				'mods/songs/' + formattedFolder,
+				'assets/songs/' + formattedFolder,
+				'assets/shared/songs/' + formattedFolder,
+				'songs/' + formattedFolder
+			];
+
+			var instFound:Bool = false;
+
+			trace("=========================================");
+			trace("STARTING NEW CHART ASSET CHECK...");
+
+			for (path in pathsToCheck)
+			{
+				var instPath:String = path + '/Inst.ogg';
+				var instPathLower:String = path + '/inst.ogg';
+
+				trace("Checking assets: " + instPath + " | " + instPathLower);
+
+				if (OpenFlAssets.exists(instPath) || OpenFlAssets.exists(instPathLower))
+				{
+					trace("SUCCESS! Found Instrumental audio file inside assets at: " + path);
+					instFound = true;
+					break;
+				}
+			}
+			trace("=========================================");
+
+			if (!instFound)
+			{
+				trace("ERROR: 'Inst.ogg' or 'inst.ogg' was NOT found in game assets for: " + formattedFolder);
+				ncErrorText.text = "Inst file not found";
+				ncErrorText.visible = true;
+				return;
+			}
+
+			ncErrorText.visible = false;
+
+			var template = Song.getTemplateSong();
+			template.song = rawSongName;
+			template.bpm = ncBpmStepper.value;
+
+			PlayState.SONG = new Song(template);
+			closeNewChartWindow();
+			MusicBeatState.resetState();
+		});
+		newChartWindow.add(createBtn);
+
+		var cancelBtn:FlxButton = new FlxButton(windowBg.x + 200, windowBg.y + 155, "Cancel", function()
+		{
+			closeNewChartWindow();
+		});
+		newChartWindow.add(cancelBtn);
+
+		newChartWindow.visible = false;
+		add(newChartWindow);
+
+		listOfInput = blockPressWhileTypingOn.concat(cast blockPressWhileTypingOnStepper).filter(i -> return i != null);
+	}
+
+	function openNewChartWindow():Void
+	{
+		if (newChartWindow == null)
+			createNewChartWindow();
+
+		ncSongInput.text = "New-Song";
+		ncBpmStepper.value = 150;
+		ncErrorText.visible = false;
+
+		newChartWindow.visible = true;
+		isNewChartWindowOpen = true;
+		UI_box.active = false;
+		FlxG.sound.keysAllowed = false;
+	}
+
+	function closeNewChartWindow():Void
+	{
+		if (newChartWindow != null)
+		{
+			newChartWindow.visible = false;
+		}
+		isNewChartWindowOpen = false;
+		UI_box.active = true;
+		FlxG.sound.keysAllowed = true;
 	}
 }
 

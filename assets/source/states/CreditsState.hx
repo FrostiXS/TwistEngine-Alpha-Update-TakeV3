@@ -93,7 +93,7 @@ static var baseCreditsData = [
 				color: 0xFFD486E7
 			},
 			{
-				name: "FNF' Colors Adventure",
+				name: "CA: New Horizons",
 				icon: "credits/fnfca.png",
 				urls: ["https://x.com/FNFCAdventure"],
 				description: "The engine's progenitor",
