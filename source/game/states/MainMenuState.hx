@@ -214,6 +214,14 @@ class MainMenuState extends MusicBeatState {
 				}
 			}
 
+			if (controls.BACK)
+			{
+				selectedSomethin = true;
+				FlxG.mouse.visible = false;
+				FlxG.sound.play(Paths.sound('cancelMenu'));
+				MusicBeatState.switchState(new TitleState());
+			}
+
 			#if (EDITORS_ALLOWED && desktop)
 			if (controls.DEBUG_1)
 			{

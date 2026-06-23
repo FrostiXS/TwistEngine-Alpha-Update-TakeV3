@@ -91,7 +91,7 @@ class InitState extends flixel.FlxState{
 			Main.fpsVar.visible = ClientPrefs.showFPS;
 			Main.fpsVar.alpha = 1;
 		}
-		game.backend.system.states.MusicBeatState.switchState(new game.states.MainMenuState()); // initial game state
+		game.backend.system.states.MusicBeatState.switchState(new game.states.TitleState()); // initial game state
 		#if UPDATE_FEATURE
 		UpdaterPopup.init();
 		#end

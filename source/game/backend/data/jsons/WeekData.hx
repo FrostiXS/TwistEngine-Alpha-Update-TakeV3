@@ -130,7 +130,6 @@ class WeekData
 
 		if (Reflect.hasField(data, 'isTwist') && Reflect.field(data, 'isTwist') == true)
 		{
-			// TWIST формат (уже всё есть, только конвертируем песни)
 			function convertToClass(dyn:Dynamic):SongMetaData
 			{
 				var song:SongMetaData = {};
@@ -142,7 +141,6 @@ class WeekData
 			data.songs = songsArray == null ? [] : [for (i in songsArray) convertToClass(i)];
 			data.difficulties = convertDifficulties(data.difficulties);
 
-			// Если в Twist формате нет description, но есть storyName - используем его
 			if (data.storyMenu != null && (data.storyMenu.description == null || data.storyMenu.description == ""))
 			{
 				data.storyMenu.description = data.storyMenu.storyName;
@@ -152,48 +150,39 @@ class WeekData
 		}
 		else
 		{
-			// PSYCH ENGINE формат
 			final psychData:WeekFilePsych = cast data;
 
-			// Определяем имя текстурной атласа для недели
 			var weekTextureName:String = psychData.weekName;
 			if (weekTextureName == null || weekTextureName == "")
 				weekTextureName = psychData.storyName != null ? psychData.storyName.toLowerCase() : "default";
 
-			// Формируем описание - можно взять из storyName или из кастомного поля
 			var weekDescription:String = "";
 
-			// Сначала проверяем, есть ли кастомное description в оригинальном JSON
 			if (Reflect.hasField(psychData, 'description') && Reflect.field(psychData, 'description') != null)
 			{
 				weekDescription = Reflect.field(psychData, 'description');
 			}
-			// Если нет - используем storyName
 			else if (psychData.storyName != null)
 			{
 				weekDescription = psychData.storyName;
 			}
-			// Если и storyName нет - дефолтное описание
 			else
 			{
 				weekDescription = "Play this week!";
 			}
 
-			// Формируем массив цветов персонажей (если есть)
 			var characterColors:Array<String> = null;
 			if (Reflect.hasField(psychData, 'characterColors') && Reflect.field(psychData, 'characterColors') != null)
 			{
 				characterColors = Reflect.field(psychData, 'characterColors');
 			}
 
-			// Формируем градиент фона (если есть)
 			var bgGradientColor:Array<String> = null;
 			if (Reflect.hasField(psychData, 'bgGradientColor') && Reflect.field(psychData, 'bgGradientColor') != null)
 			{
 				bgGradientColor = Reflect.field(psychData, 'bgGradientColor');
 			}
 
-			// Получаем цветовую схему для персонажей
 			var boyfriendColor:String = Reflect.hasField(psychData, 'boyfriendColor') ? Reflect.field(psychData, 'boyfriendColor') : null;
 			var girlfriendColor:String = Reflect.hasField(psychData, 'girlfriendColor') ? Reflect.field(psychData, 'girlfriendColor') : null;
 			var dadColor:String = Reflect.hasField(psychData, 'dadColor') ? Reflect.field(psychData, 'dadColor') : null;
@@ -214,7 +203,7 @@ class WeekData
 				storyMenu: {
 					storyName: psychData.storyName,
 					weekName: weekTextureName,
-					description: weekDescription, // ← КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ!
+					description: weekDescription,
 					weekCharacters: psychData.weekCharacters,
 					weekBackground: psychData.weekBackground,
 					weekBefore: psychData.weekBefore,
@@ -263,7 +252,6 @@ typedef WeekStruct =
 	?hideInFreeplay:Bool
 }
 
-// Расширенный тип для Psych JSON с поддержкой кастомных полей
 typedef WeekFilePsych =
 {
 	var songs:Array<Dynamic>;
@@ -279,7 +267,6 @@ typedef WeekFilePsych =
 	var hideFreeplay:Bool;
 	var difficulties:String;
 
-	// Кастомные поля, которые могут быть в вашем JSON
 	@:optional var description:String;
 	@:optional var characterColors:Array<String>;
 	@:optional var bgGradientColor:Array<String>;

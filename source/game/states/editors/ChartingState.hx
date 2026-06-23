@@ -2587,6 +2587,7 @@ class ChartingState extends MusicBeatUIState
 
 			//if (lastConductorPos != Conductor.songPosition)
 
+				updateInfoText();
 			if(FlxG.sound.music.playing)
 			{
 				var s = curDecBeat % 1 * .25;
@@ -2627,13 +2628,14 @@ class ChartingState extends MusicBeatUIState
 		{
 			diffDisplay = "Normal";
 		}
+
 		bpmTxt.text = 'Song: ${_song.song}
-		Difficulty: $diffDisplay
 		${
 			FlxStringUtil.formatTime(FlxMath.roundDecimal(Conductor.songPosition / 1000, 2), true)
 		} / ${
 			FlxStringUtil.formatTime(FlxMath.roundDecimal(FlxG.sound.music.length / 1000, 2), true)
 		}
+		Difficulty: $diffDisplay
 		Section: $curSec
 		Beat: $curBeat
 		Step: $curStep

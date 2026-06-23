@@ -1,2 +1,0 @@
-package game.states;
-class TitleState extends MusicBeatState {/**dummy**/}
