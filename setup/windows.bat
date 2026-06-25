@@ -2,7 +2,7 @@
 cd ..
 @echo on
 echo Installing dependencies.
-haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp --skip-dependencies
+haxelib install hxcpp 4.3.2 --skip-dependencies
 haxelib install lime 8.1.3 --skip-dependencies
 haxelib run lime setup
 haxelib install openfl 9.3.4 --skip-dependencies
