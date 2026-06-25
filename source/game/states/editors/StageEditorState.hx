@@ -1742,18 +1742,18 @@ class StageEditorState extends MusicBeatState
 		final data = Json.stringify({
 			directory: "",
 			defaultZoom: defaultCamZoom,
-			isPixelStage: false,
+			isPixelStage: isPixelStage,
 			typeNotes: 'fnf',
 
 			boyfriend: [boyfriendData.x, boyfriendData.y],
 			girlfriend: [gfData.x, gfData.y],
 			opponent: [dadData.x, dadData.y],
-			hide_girlfriend: false,
+			hide_girlfriend: !gf.visible,
 
-			camera_boyfriend: [0, 0],
-			camera_opponent: [0, 0],
-			camera_girlfriend: [0, 0],
-			camera_speed: 1
+			camera_boyfriend: stageData.camera_boyfriend ?? [0, 0],
+			camera_opponent: stageData.camera_opponent ?? [0, 0],
+			camera_girlfriend: stageData.camera_girlfriend ?? [0, 0],
+			camera_speed: stageData.camera_speed ?? 1
 		}, "\t");
 
 		if (data.length <= 0) return;
