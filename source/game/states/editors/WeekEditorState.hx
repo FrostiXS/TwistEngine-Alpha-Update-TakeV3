@@ -273,7 +273,7 @@ class WeekEditorState extends MusicBeatUIState
 	{
 		syncCurrentSong();
 		week.songs.push({ songName: "newSong", healthIcon: "face", freeplayColor: [146, 113, 253], invisibleInFreeplay: false });
-		curSong = week.songs.length - 1;
+		curSong = Std.int(week.songs.length - 1);
 		refreshSong();
 	}
 
