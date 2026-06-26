@@ -63,7 +63,7 @@ class WeekEditorState extends MusicBeatUIState
 		add(title);
 
 		var hint = new FlxText(12, 44, FlxG.width - 24,
-			"Click a field to edit it. ESC to exit. Remember to Save when you are done.", 12);
+			"Click a field to edit it. ESC = exit, CTRL+S = save, CTRL+O = load.", 12);
 		hint.color = 0xFF9090A8;
 		add(hint);
 
@@ -337,8 +337,16 @@ class WeekEditorState extends MusicBeatUIState
 	override function update(elapsed:Float):Void
 	{
 		super.update(elapsed);
-		if (FlxG.keys.justPressed.ESCAPE && !anyInputSelected())
-			exitEditor();
+
+		if (!anyInputSelected())
+		{
+			if (FlxG.keys.justPressed.ESCAPE)
+				exitEditor();
+			else if (FlxG.keys.pressed.CONTROL && FlxG.keys.justPressed.S)
+				saveWeek();
+			else if (FlxG.keys.pressed.CONTROL && FlxG.keys.justPressed.O)
+				loadWeek();
+		}
 	}
 
 	function anyInputSelected():Bool
